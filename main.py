@@ -855,7 +855,7 @@ async def w_order_step1(message: Message, state: FSMContext):
     await message.answer("🏙 Шаг 1/5 — Выберите город:", reply_markup=kb.w_step1_city_keyboard(cities_dict))
 
 # === ШАГ 1: ВЫБОР ГОРОДА ===
-@dp.callback_query(WorkerOrder.step1_city, F.data.startswith("wcity:"))
+@dp.callback_query(F.data.startswith("wcity:") | F.data.startswith("w_order_step1:"))
 async def w_step1_city(callback: CallbackQuery, state: FSMContext):
     city_name = callback.data.split(":")[1]
     cities_dict = db.get_all_custom_cities()
@@ -889,7 +889,7 @@ async def w_step1_city(callback: CallbackQuery, state: FSMContext):
 
 
 # === ШАГ 2: ВЫБОР РАЙОНА ===
-@dp.callback_query(WorkerOrder.step2_district, F.data.startswith("wdist:"))
+@dp.callback_query(F.data.startswith("wdist:") | F.data.startswith("w_order_step2:"))
 async def w_step2_district(callback: CallbackQuery, state: FSMContext):
     dist_name = callback.data.split(":")[1]
     data = await state.get_data()
@@ -914,7 +914,6 @@ async def w_step2_district(callback: CallbackQuery, state: FSMContext):
         reply_markup=kb.w_step3_product_keyboard(products)
     )
     await callback.answer()
-    
     loc_str = "Все районы" if district == "all" else district
     await callback.message.edit_text(f"🏘 {data['w_city']} -> {loc_str}\n📦 Шаг 3/5 — Выберите товар из склада:", reply_markup=kb.w_step3_warehouse_keyboard(active_items))
     await callback.answer()
