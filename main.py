@@ -854,30 +854,66 @@ async def w_order_step1(message: Message, state: FSMContext):
     cities_dict = db.get_all_custom_cities()
     await message.answer("🏙 Шаг 1/5 — Выберите город:", reply_markup=kb.w_step1_city_keyboard(cities_dict))
 
+# === ШАГ 1: ВЫБОР ГОРОДА ===
 @dp.callback_query(WorkerOrder.step1_city, F.data.startswith("wcity:"))
-async def w_order_step2(callback: CallbackQuery, state: FSMContext):
-    city = callback.data.split(":")[1]
-    await state.update_data(w_city=city)
-    
-    if city == "all":
-        await state.update_data(w_dist="all")
+async def w_step1_city(callback: CallbackQuery, state: FSMContext):
+    city_name = callback.data.split(":")[1]
+    cities_dict = db.get_all_custom_cities()
+
+    # 🌍 ОБРАБОТКА "ВСЕ ГОРОДА"
+    if city_name == "all":
+        await state.update_data(w_city="all", w_dist="all")
         await state.set_state(WorkerOrder.step3_product)
-        active_items = db.get_active_warehouse_items()
-        await callback.message.edit_text(f"🌍 Все города\n📦 Шаг 3/5 — Выберите товар из склада:", reply_markup=kb.w_step3_warehouse_keyboard(active_items))
-    else:
-        await state.set_state(WorkerOrder.step2_district)
-        cities_dict = db.get_all_custom_cities()
-        await callback.message.edit_text(f"🏙 {city}\n🏘 Шаг 2/5 — Выберите район (или все сразу):", reply_markup=kb.w_step2_district_keyboard(city, cities_dict))
-    
+        products = db.get_all_warehouse_items()
+        await callback.message.edit_text(
+            "🌍 Выбраны **Все города и все районы**.\n\nШаг 3/5 — Выберите товар:",
+            reply_markup=kb.w_step3_product_keyboard(products),
+            parse_mode="Markdown"
+        )
+        await callback.answer()
+        return
+
+    if city_name not in cities_dict:
+        await callback.answer("Город не найден.", show_alert=True)
+        return
+
+    await state.update_data(w_city=city_name)
+    districts = cities_dict.get(city_name, [])
+
+    await state.set_state(WorkerOrder.step2_district)
+    await callback.message.edit_text(
+        f"Город: {city_name}\nШаг 2/5 — Выберите район:",
+        reply_markup=kb.w_step2_district_keyboard(districts)
+    )
     await callback.answer()
 
+
+# === ШАГ 2: ВЫБОР РАЙОНА ===
 @dp.callback_query(WorkerOrder.step2_district, F.data.startswith("wdist:"))
-async def w_order_step3(callback: CallbackQuery, state: FSMContext):
-    district = callback.data.split(":")[1]
-    await state.update_data(w_dist=district)
-    await state.set_state(WorkerOrder.step3_product)
+async def w_step2_district(callback: CallbackQuery, state: FSMContext):
+    dist_name = callback.data.split(":")[1]
     data = await state.get_data()
-    active_items = db.get_active_warehouse_items()
+    city_name = data.get("w_city")
+
+    cities_dict = db.get_all_custom_cities()
+    available_districts = cities_dict.get(city_name, [])
+
+    # 🌍 ОБРАБОТКА "ВСЕ РАЙОНЫ"
+    if dist_name == "all":
+        await state.update_data(w_dist="all")
+    elif dist_name not in available_districts:
+        await callback.answer("Район не найден.", show_alert=True)
+        return
+    else:
+        await state.update_data(w_dist=dist_name)
+
+    await state.set_state(WorkerOrder.step3_product)
+    products = db.get_all_warehouse_items()
+    await callback.message.edit_text(
+        f"Город: {city_name}\nРайон: {'Все районы' if dist_name == 'all' else dist_name}\n\nШаг 3/5 — Выберите товар:",
+        reply_markup=kb.w_step3_product_keyboard(products)
+    )
+    await callback.answer()
     
     loc_str = "Все районы" if district == "all" else district
     await callback.message.edit_text(f"🏘 {data['w_city']} -> {loc_str}\n📦 Шаг 3/5 — Выберите товар из склада:", reply_markup=kb.w_step3_warehouse_keyboard(active_items))
