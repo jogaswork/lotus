@@ -280,13 +280,12 @@ def dynamic_sizes_keyboard(sizes_prices: list[tuple], prefix: str, back_callback
         buttons.append([InlineKeyboardButton(text=f"{size} шт - {price} ₽", callback_data=f"{prefix}_{i}")])
     buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data=back_callback)])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
-
 def buyer_confirm_keyboard(price: float) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="✅ Подтвердить оплату", callback_data="b_buy_confirm")],
-            [InlineKeyboardButton(text="◀️ Назад", callback_data="b_buy_cancel")]
-        ]
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Подтвердить оплату", callback_data="b_buy_confirm")],
+        [InlineKeyboardButton(text="◀️ Назад", callback_data="b_buy_cancel")]
+    ])
+
 def cancel_state_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
@@ -297,12 +296,18 @@ def cancel_state_keyboard() -> ReplyKeyboardMarkup:
     )
 
 def w_step1_city_keyboard(custom_cities_dict: dict) -> InlineKeyboardMarkup:
-    # Кнопка "Все города" идет первой
+    # 🌍 Кнопка "Все города" идет первой
     buttons = [[InlineKeyboardButton(text="🌍 Все города", callback_data="wcity:all")]]
     row = []
     unique_cities = sorted(list(set(list(custom_cities_dict.keys()))))
     for city in unique_cities:
         row.append(InlineKeyboardButton(text=city, callback_data=f"wcity:{city}"))
+        if len(row) == 2:
+            buttons.append(row)
+            row = []
+    if row:
+        buttons.append(row)
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
         if len(row) == 2:
             buttons.append(row)
             row = []
